@@ -72,7 +72,8 @@ def init_favorites_table():
     CREATE TABLE IF NOT EXISTS favorites (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         user_id INTEGER,
-        question_id INTEGER
+        question_id INTEGER,
+        group_name TEXT
     )
     """)
 
@@ -216,12 +217,22 @@ async def start(message: Message):
 async def restart(message: Message):
     user_id = message.from_user.id
 
-    # сбрасываем сессию
     if user_id in user_sessions:
         del user_sessions[user_id]
 
     if user_id in current_group:
         del current_group[user_id]
+
+    kb = InlineKeyboardBuilder()
+    kb.button(text="Группа II", callback_data="group_2")
+    kb.button(text="Группа III", callback_data="group_3")
+    kb.button(text="Группа IV", callback_data="group_4")
+    kb.adjust(1)
+
+    await message.answer(
+        "🔄 Тест перезапущен.\n\nВыберите группу по электробезопасности:",
+        reply_markup=kb.as_markup()
+    )
 
 # ==========================
 # ИЗБРАННЫЕ ВОПРОСЫ
@@ -235,7 +246,7 @@ async def show_favorites(message: Message):
     cur = con.cursor()
 
     cur.execute(
-        "SELECT question_id FROM favorites WHERE user_id=?",
+        "SELECT question_id, group_name FROM favorites WHERE user_id=?",
         (user_id,)
     )
 
@@ -246,15 +257,25 @@ async def show_favorites(message: Message):
         await message.answer("⭐ У вас пока нет избранных вопросов")
         return
 
-    question_ids = [r[0] for r in rows]
-
     text = "⭐ Ваши избранные вопросы:\n\n"
 
-    for qid in question_ids[:20]:
-        text += f"Вопрос №{qid}\n"
+    for qid, group in rows[:10]:
 
-    if len(question_ids) > 20:
-        text += "\n...и ещё несколько."
+        db = sqlite3.connect(f"{group}.db")
+        cur = db.cursor()
+
+        cur.execute(
+            "SELECT text FROM questions WHERE id=?",
+            (qid,)
+        )
+
+        q = cur.fetchone()
+        db.close()
+
+        if q:
+            group_name = group.replace("group", "Группа ")
+            text += f"📘 {group_name} | Вопрос №{qid}\n"
+            text += f"{q[0][:200]}...\n\n"
 
     await message.answer(text)
 
@@ -418,19 +439,20 @@ async def add_favorite(call: CallbackQuery):
     user_id = call.from_user.id
     qid = int(call.data.split(":")[1])
 
+    group = current_group.get(user_id, "group3")
+
     con = sqlite3.connect("favorites.db")
     cur = con.cursor()
 
     cur.execute(
-        "INSERT INTO favorites (user_id, question_id) VALUES (?, ?)",
-        (user_id, qid)
+        "INSERT INTO favorites (user_id, question_id, group_name) VALUES (?, ?, ?)",
+        (user_id, qid, group)
     )
 
     con.commit()
     con.close()
 
     await call.answer("⭐ Вопрос добавлен в избранное")
-
 # ==========================
 # ЗАВЕРШЕНИЕ
 # ==========================
@@ -490,6 +512,7 @@ async def main():
 if __name__ == "__main__":
     keep_alive()
     asyncio.run(main())
+
 
 
 

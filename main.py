@@ -64,6 +64,24 @@ def init_results_table():
 
 init_results_table()
 
+def init_favorites_table():
+    con = sqlite3.connect("favorites.db")
+    cur = con.cursor()
+
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS favorites (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER,
+        question_id INTEGER
+    )
+    """)
+
+    con.commit()
+    con.close()
+
+
+init_favorites_table()
+
 
 # ==========================
 # ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ
@@ -420,4 +438,5 @@ async def main():
 if __name__ == "__main__":
     keep_alive()
     asyncio.run(main())
+
 

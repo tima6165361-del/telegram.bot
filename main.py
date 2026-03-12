@@ -223,6 +223,41 @@ async def restart(message: Message):
     if user_id in current_group:
         del current_group[user_id]
 
+# ==========================
+# ИЗБРАННЫЕ ВОПРОСЫ
+# ==========================
+
+@dp.message(Command("favorites"))
+async def show_favorites(message: Message):
+    user_id = message.from_user.id
+
+    con = sqlite3.connect("favorites.db")
+    cur = con.cursor()
+
+    cur.execute(
+        "SELECT question_id FROM favorites WHERE user_id=?",
+        (user_id,)
+    )
+
+    rows = cur.fetchall()
+    con.close()
+
+    if not rows:
+        await message.answer("⭐ У вас пока нет избранных вопросов")
+        return
+
+    question_ids = [r[0] for r in rows]
+
+    text = "⭐ Ваши избранные вопросы:\n\n"
+
+    for qid in question_ids[:20]:
+        text += f"Вопрос №{qid}\n"
+
+    if len(question_ids) > 20:
+        text += "\n...и ещё несколько."
+
+    await message.answer(text)
+
     # заново показываем выбор группы
     kb = InlineKeyboardBuilder()
     kb.button(text="Группа II", callback_data="group_2")
@@ -455,6 +490,7 @@ async def main():
 if __name__ == "__main__":
     keep_alive()
     asyncio.run(main())
+
 
 
 

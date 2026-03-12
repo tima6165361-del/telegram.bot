@@ -227,7 +227,7 @@ async def restart(message: Message):
 # ИЗБРАННЫЕ ВОПРОСЫ
 # ==========================
 
-@dp.message(Command("favorites"))
+@dp.message(Command("favorite"))
 async def show_favorites(message: Message):
     user_id = message.from_user.id
 
@@ -490,6 +490,7 @@ async def main():
 if __name__ == "__main__":
     keep_alive()
     asyncio.run(main())
+
 
 
 

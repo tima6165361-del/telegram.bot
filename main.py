@@ -377,7 +377,24 @@ async def on_answer(call: CallbackQuery):
 
     await call.message.answer(result)
     await send_next_question(call.message, user_id)
+    
+@dp.callback_query(F.data.startswith("fav:"))
+async def add_favorite(call: CallbackQuery):
+    user_id = call.from_user.id
+    qid = int(call.data.split(":")[1])
 
+    con = sqlite3.connect("favorites.db")
+    cur = con.cursor()
+
+    cur.execute(
+        "INSERT INTO favorites (user_id, question_id) VALUES (?, ?)",
+        (user_id, qid)
+    )
+
+    con.commit()
+    con.close()
+
+    await call.answer("⭐ Вопрос добавлен в избранное")
 
 # ==========================
 # ЗАВЕРШЕНИЕ
@@ -438,5 +455,6 @@ async def main():
 if __name__ == "__main__":
     keep_alive()
     asyncio.run(main())
+
 
 

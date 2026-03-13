@@ -240,7 +240,12 @@ async def restart(message: Message):
 
 @dp.message(Command("favorite"))
 async def show_favorites(message: Message):
+
     user_id = message.from_user.id
+
+    # завершить активный тест
+    if user_id in user_sessions:
+        user_sessions[user_id]["finished"] = True
 
     con = sqlite3.connect("favorites.db")
     cur = con.cursor()
@@ -287,7 +292,7 @@ async def show_favorites(message: Message):
     kb.adjust(1)
 
     await message.answer(
-        "🔄 Тест перезапущен.\n\nВыберите группу по электробезопасности:",
+        "Выберите группу для нового теста:",
         reply_markup=kb.as_markup()
     )
 
@@ -315,6 +320,7 @@ async def choose_group(call: CallbackQuery):
     kb = InlineKeyboardBuilder()
     kb.button(text="20 вопросов (случайно)", callback_data="mode_random")
     kb.button(text="Тест по порядку", callback_data="mode_ordered")
+    kb.button(text="📖 Повторить избранные", callback_data="mode_favorites")
     kb.adjust(1)
 
     await call.message.answer(
@@ -353,6 +359,7 @@ async def send_next_question(message: Message, user_id: int):
     if not session or session["finished"]:
         return
 
+    # режим случайных вопросов
     if session["mode"] == "random":
         if session["total"] >= 20:
             await finish_test(message, user_id)
@@ -366,6 +373,51 @@ async def send_next_question(message: Message, user_id: int):
         qid, text, rationale, opts = q
         session["used_ids"].append(qid)
 
+    # 👇 ВСТАВИТЬ ЭТОТ БЛОК
+    elif session["mode"] == "favorites":
+
+        con = sqlite3.connect("favorites.db")
+        cur = con.cursor()
+
+        cur.execute(
+            "SELECT question_id, group_name FROM favorites WHERE user_id=?",
+            (user_id,)
+        )
+
+        rows = cur.fetchall()
+        con.close()
+
+        if not rows:
+            await message.answer("⭐ У вас нет избранных вопросов")
+            await finish_test(message, user_id)
+            return
+
+        qid, group = random.choice(rows)
+
+        db = sqlite3.connect(f"{group}.db")
+        cur = db.cursor()
+
+        cur.execute(
+            "SELECT id, text, rationale FROM questions WHERE id=?",
+            (qid,)
+        )
+
+        q = cur.fetchone()
+
+        cur.execute("""
+            SELECT id, pos, text, is_correct
+            FROM options
+            WHERE question_id=?
+            ORDER BY pos
+        """, (qid,))
+
+        opts = cur.fetchall()
+        db.close()
+
+        text = q[1]
+        rationale = q[2]
+
+    # режим по порядку
     else:
         q = get_ordered_question(user_id, session["current_index"])
         if not q:
@@ -438,13 +490,20 @@ async def on_answer(call: CallbackQuery):
 async def add_favorite(call: CallbackQuery):
     user_id = call.from_user.id
     qid = int(call.data.split(":")[1])
-
     group = current_group.get(user_id, "group3")
 
     con = sqlite3.connect("favorites.db")
     cur = con.cursor()
 
     cur.execute(
+    "SELECT 1 FROM favorites WHERE user_id=? AND question_id=?",
+    (user_id, qid)
+    )
+
+    exists = cur.fetchone()
+
+    if not exists:
+        cur.execute(
         "INSERT INTO favorites (user_id, question_id, group_name) VALUES (?, ?, ?)",
         (user_id, qid, group)
     )

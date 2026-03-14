@@ -233,6 +233,7 @@ async def start(message: Message):
 
 @dp.message(Command("restart"))
 async def restart(message: Message):
+
     user_id = message.from_user.id
 
     if user_id in user_sessions:
@@ -242,13 +243,12 @@ async def restart(message: Message):
         del current_group[user_id]
 
     kb = InlineKeyboardBuilder()
-    kb.button(text="Группа II", callback_data="group_2")
-    kb.button(text="Группа III", callback_data="group_3")
-    kb.button(text="Группа IV", callback_data="group_4")
+    kb.button(text="⚡ Электробезопасность", callback_data="section_electro")
+    kb.button(text="🔥 Пожарные системы", callback_data="section_fire")
     kb.adjust(1)
 
     await message.answer(
-        "🔄 Тест перезапущен.\n\nВыберите группу по электробезопасности:",
+        "🔄 Тест перезапущен.\n\nВыберите раздел тестирования:",
         reply_markup=kb.as_markup()
     )
 

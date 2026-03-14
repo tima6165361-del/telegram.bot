@@ -202,16 +202,17 @@ def get_ordered_question(user_id, offset):
 
 @dp.message(CommandStart())
 async def start(message: Message):
+
     kb = InlineKeyboardBuilder()
-    kb.button(text="Группа II", callback_data="group_2")
-    kb.button(text="Группа III", callback_data="group_3")
-    kb.button(text="Группа IV", callback_data="group_4")
+    kb.button(text="⚡ Электробезопасность", callback_data="section_electro")
+    kb.button(text="🔥 Пожарные системы", callback_data="section_fire")
     kb.adjust(1)
 
     await message.answer(
-        "Выберите группу по электробезопасности:",
+        "Выберите раздел тестирования:",
         reply_markup=kb.as_markup()
     )
+
 
 @dp.message(Command("restart"))
 async def restart(message: Message):
@@ -233,6 +234,44 @@ async def restart(message: Message):
         "🔄 Тест перезапущен.\n\nВыберите группу по электробезопасности:",
         reply_markup=kb.as_markup()
     )
+
+
+# ==========================
+# ВЫБОР РАЗДЕЛА
+# ==========================
+
+@dp.callback_query(F.data == "section_electro")
+async def choose_electro(call: CallbackQuery):
+
+    kb = InlineKeyboardBuilder()
+    kb.button(text="Группа II", callback_data="group_2")
+    kb.button(text="Группа III", callback_data="group_3")
+    kb.button(text="Группа IV", callback_data="group_4")
+    kb.adjust(1)
+
+    await call.message.answer(
+        "Выберите группу по электробезопасности:",
+        reply_markup=kb.as_markup()
+    )
+
+    await call.answer()
+
+
+@dp.callback_query(F.data == "section_fire")
+async def choose_fire(call: CallbackQuery):
+
+    kb = InlineKeyboardBuilder()
+    kb.button(text="🚨 Пожарная сигнализация", callback_data="fire_ps")
+    kb.button(text="🧯 Пожаротушение", callback_data="fire_ext")
+    kb.button(text="📢 Системы оповещения", callback_data="fire_voice")
+    kb.adjust(1)
+
+    await call.message.answer(
+        "Выберите направление тестирования:",
+        reply_markup=kb.as_markup()
+    )
+
+    await call.answer()
 
 # ==========================
 # ИЗБРАННЫЕ ВОПРОСЫ

@@ -620,24 +620,23 @@ async def finish_test(message: Message, user_id: int):
     con.commit()
     con.close()
 
-    await message.answer(
-        text = (
-    f"🏁 Тест завершён\n\n"
-    f"Всего вопросов: {total}\n"
-    f"Правильных: {correct}\n"
-    f"Ошибок: {total - correct}\n\n"
-    f"📊 Результат: {percent}%"
-)
+    text = (
+        f"🏁 Тест завершён\n\n"
+        f"Всего вопросов: {total}\n"
+        f"Правильных: {correct}\n"
+        f"Ошибок: {total - correct}\n\n"
+        f"📊 Результат: {percent}%"
+    )
 
-kb = InlineKeyboardBuilder()
+    kb = InlineKeyboardBuilder()
 
-if session["wrong_questions"]:
-    kb.button(text="🔁 Повторить ошибки", callback_data="repeat_wrong")
+    if session["wrong_questions"]:
+        kb.button(text="🔁 Повторить ошибки", callback_data="repeat_wrong")
 
-kb.button(text="📚 Новый тест", callback_data="restart_test")
-kb.adjust(1)
+    kb.button(text="📚 Новый тест", callback_data="restart_test")
+    kb.adjust(1)
 
-await message.answer(text, reply_markup=kb.as_markup())
+    await message.answer(text, reply_markup=kb.as_markup())
 
 
 # ==========================

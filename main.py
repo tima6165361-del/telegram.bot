@@ -506,6 +506,7 @@ async def send_next_wrong_question(message: Message, user_id: int):
 
 @dp.callback_query(F.data.startswith("ans:"))
 async def on_answer(call: CallbackQuery):
+
     user_id = call.from_user.id
     session = user_sessions.get(user_id)
 
@@ -523,38 +524,39 @@ async def on_answer(call: CallbackQuery):
     con = db(user_id)
     cur = con.cursor()
 
-    cur.execute("""
-        SELECT is_correct FROM options
-        WHERE question_id=? AND pos=?
-    """, (qid, pos))
+    cur.execute(
+        "SELECT is_correct FROM options WHERE question_id=? AND pos=?",
+        (qid, pos)
+    )
     row = cur.fetchone()
 
-    cur.execute("""
-        SELECT rationale FROM questions WHERE id=?
-    """, (qid,))
+    cur.execute(
+        "SELECT rationale FROM questions WHERE id=?",
+        (qid,)
+    )
     rationale_row = cur.fetchone()
 
     con.close()
 
-session["total"] += 1
-session["last_question_id"] = None
+    session["total"] += 1
+    session["last_question_id"] = None
 
-if row and row[0] == 1:
-    session["correct"] += 1
-    result = "✅ Правильно!"
-else:
-    result = "❌ Неверно"
-    session["wrong_questions"].append(qid)
+    if row and row[0] == 1:
+        session["correct"] += 1
+        result = "✅ Правильно!"
+    else:
+        result = "❌ Неверно"
+        session["wrong_questions"].append(qid)
 
-if rationale_row and rationale_row[0]:
-    result += f"\n\n📌 Основание:\n{rationale_row[0].strip()}"
+    if rationale_row and rationale_row[0]:
+        result += f"\n\n📌 Основание:\n{rationale_row[0].strip()}"
 
-await call.message.answer(result)
+    await call.message.answer(result)
 
-if session["mode"] == "wrong":
-    await send_next_wrong_question(call.message, user_id)
-else:
-    await send_next_question(call.message, user_id)
+    if session["mode"] == "wrong":
+        await send_next_wrong_question(call.message, user_id)
+    else:
+        await send_next_question(call.message, user_id)
     
 @dp.callback_query(F.data.startswith("fav:"))
 async def add_favorite(call: CallbackQuery):

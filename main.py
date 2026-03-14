@@ -368,6 +368,7 @@ async def repeat_wrong_questions(call: CallbackQuery):
     session["wrong_index"] = 0
     session["total"] = 0
     session["correct"] = 0
+    session["finished"] = False
 
     await call.answer()
     await send_next_wrong_question(call.message, user_id)

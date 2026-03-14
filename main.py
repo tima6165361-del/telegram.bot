@@ -377,17 +377,25 @@ async def repeat_wrong_questions(call: CallbackQuery):
 # ==========================
 
 async def send_next_question(message: Message, user_id: int):
+
     session = user_sessions.get(user_id)
+
     if not session or session["finished"]:
         return
 
-    # режим случайных вопросов
+
+    # ==========================
+    # СЛУЧАЙНЫЕ 20 ВОПРОСОВ
+    # ==========================
+
     if session["mode"] == "random":
+
         if session["total"] >= 20:
             await finish_test(message, user_id)
             return
 
         q = get_random_question(user_id, session["used_ids"])
+
         if not q:
             await finish_test(message, user_id)
             return
@@ -395,7 +403,11 @@ async def send_next_question(message: Message, user_id: int):
         qid, text, rationale, opts = q
         session["used_ids"].append(qid)
 
-    # 👇 ВСТАВИТЬ ЭТОТ БЛОК
+
+    # ==========================
+    # ИЗБРАННЫЕ
+    # ==========================
+
     elif session["mode"] == "favorites":
 
         con = sqlite3.connect("favorites.db")
@@ -426,12 +438,15 @@ async def send_next_question(message: Message, user_id: int):
 
         q = cur.fetchone()
 
-        cur.execute("""
+        cur.execute(
+            """
             SELECT id, pos, text, is_correct
             FROM options
             WHERE question_id=?
             ORDER BY pos
-        """, (qid,))
+            """,
+            (qid,)
+        )
 
         opts = cur.fetchall()
         db.close()
@@ -439,9 +454,15 @@ async def send_next_question(message: Message, user_id: int):
         text = q[1]
         rationale = q[2]
 
-    # режим по порядку
+
+    # ==========================
+    # ПО ПОРЯДКУ
+    # ==========================
+
     else:
+
         q = get_ordered_question(user_id, session["current_index"])
+
         if not q:
             await finish_test(message, user_id)
             return
@@ -449,18 +470,28 @@ async def send_next_question(message: Message, user_id: int):
         qid, text, rationale, opts = q
         session["current_index"] += 1
 
-session["last_question_id"] = qid
 
-question_text = format_question(qid, text, opts)
+    # ==========================
+    # ОТПРАВКА ВОПРОСА
+    # ==========================
 
-if session["mode"] == "random":
-    progress = f"📊 Вопрос {session['total'] + 1} / 20\n\n"
-    question_text = progress + question_text
+    session["last_question_id"] = qid
 
-await message.answer(
-    question_text,
-    reply_markup=build_keyboard(qid, opts)
-)
+    question_text = format_question(qid, text, opts)
+
+
+    # номер вопроса для режима 20 вопросов
+
+    if session["mode"] == "random":
+
+        progress = f"📊 Вопрос {session['total'] + 1} / 20\n\n"
+        question_text = progress + question_text
+
+
+    await message.answer(
+        question_text,
+        reply_markup=build_keyboard(qid, opts)
+    )
 
 # ==========================
 # ВОПРОСЫ С ОШИБКАМИ

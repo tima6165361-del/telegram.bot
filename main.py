@@ -35,14 +35,31 @@ dp = Dispatcher()
 user_sessions = {}
 current_group = {}  # user_id -> group2/group3/group4
 
+# ==========================
+# БАЗЫ ВОПРОСОВ
+# ==========================
+
+QUESTION_DATABASES = {
+    "group2": "group2.db",
+    "group3": "group3.db",
+    "group4": "group4.db",
+
+    "fire_ps": "fire_ps.db",
+    "fire_ext": "fire_ext.db",
+    "fire_voice": "fire_voice.db"
+}
 
 # ==========================
 # БАЗА
 # ==========================
 
 def db(user_id: int):
+
     group = current_group.get(user_id, "group3")
-    return sqlite3.connect(f"{group}.db")
+
+    db_name = QUESTION_DATABASES.get(group)
+
+    return sqlite3.connect(db_name)
 
 
 def init_results_table():
@@ -273,6 +290,32 @@ async def choose_fire(call: CallbackQuery):
 
     await call.answer()
 
+@dp.callback_query(F.data == "fire_ps")
+async def choose_fire_ps(call: CallbackQuery):
+
+    user_id = call.from_user.id
+    current_group[user_id] = "fire_ps"
+
+    await show_test_modes(call)
+
+
+@dp.callback_query(F.data == "fire_ext")
+async def choose_fire_ext(call: CallbackQuery):
+
+    user_id = call.from_user.id
+    current_group[user_id] = "fire_ext"
+
+    await show_test_modes(call)
+
+
+@dp.callback_query(F.data == "fire_voice")
+async def choose_fire_voice(call: CallbackQuery):
+
+    user_id = call.from_user.id
+    current_group[user_id] = "fire_voice"
+
+    await show_test_modes(call)
+
 # ==========================
 # ИЗБРАННЫЕ ВОПРОСЫ
 # ==========================
@@ -345,6 +388,8 @@ async def choose_group(call: CallbackQuery):
     group = call.data.split("_")[1]
 
     current_group[user_id] = f"group{group}"
+    await show_test_modes(call)
+    return
 
     user_sessions[user_id] = {
         "mode": None,
@@ -365,6 +410,39 @@ async def choose_group(call: CallbackQuery):
 
     await call.message.answer(
         f"Вы выбрали группу {group}\n\nВыберите режим тестирования:",
+        reply_markup=kb.as_markup()
+    )
+
+    await call.answer()
+
+
+# ==========================
+# УНИВЕРСАЛЬНОЕ МЕНЮ ТЕСТА
+# ==========================
+
+async def show_test_modes(call: CallbackQuery):
+
+    user_id = call.from_user.id
+
+    user_sessions[user_id] = {
+        "mode": None,
+        "used_ids": [],
+        "current_index": 0,
+        "correct": 0,
+        "total": 0,
+        "last_question_id": None,
+        "wrong_questions": [],
+        "finished": False
+    }
+
+    kb = InlineKeyboardBuilder()
+    kb.button(text="20 вопросов (случайно)", callback_data="mode_random")
+    kb.button(text="Тест по порядку", callback_data="mode_ordered")
+    kb.button(text="⭐ Избранные", callback_data="mode_favorites")
+    kb.adjust(1)
+
+    await call.message.answer(
+        "Выберите режим тестирования:",
         reply_markup=kb.as_markup()
     )
 

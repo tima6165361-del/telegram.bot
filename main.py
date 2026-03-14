@@ -449,7 +449,7 @@ async def send_next_question(message: Message, user_id: int):
         qid, text, rationale, opts = q
         session["current_index"] += 1
 
-    session["last_question_id"] = qid
+session["last_question_id"] = qid
 
 question_text = format_question(qid, text, opts)
 
@@ -461,6 +461,7 @@ await message.answer(
     question_text,
     reply_markup=build_keyboard(qid, opts)
 )
+
 # ==========================
 # ВОПРОСЫ С ОШИБКАМИ
 # ==========================

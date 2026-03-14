@@ -539,10 +539,10 @@ async def on_answer(call: CallbackQuery):
     session["total"] += 1
     session["last_question_id"] = None
 
-    if row and row[0] == 1:
+if row and row[0] == 1:
     session["correct"] += 1
     result = "✅ Правильно!"
-    else:
+else:
     result = "❌ Неверно"
     session["wrong_questions"].append(qid)
 

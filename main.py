@@ -314,6 +314,7 @@ async def choose_group(call: CallbackQuery):
         "correct": 0,
         "total": 0,
         "last_question_id": None,
+        "wrong_questions": [],
         "finished": False
     }
 
@@ -349,7 +350,27 @@ async def choose_mode(call: CallbackQuery):
     await call.answer()
     await send_next_question(call.message, user_id)
 
+# ==========================
+# ПОВТОР ОШИБОК
+# ==========================
 
+@dp.callback_query(F.data == "repeat_wrong")
+async def repeat_wrong_questions(call: CallbackQuery):
+
+    user_id = call.from_user.id
+    session = user_sessions.get(user_id)
+
+    if not session or not session["wrong_questions"]:
+        await call.answer("Нет ошибок для повторения")
+        return
+
+    session["mode"] = "wrong"
+    session["wrong_index"] = 0
+    session["total"] = 0
+    session["correct"] = 0
+
+    await call.answer()
+    await send_next_wrong_question(call.message, user_id)
 # ==========================
 # СЛЕДУЮЩИЙ ВОПРОС
 # ==========================
@@ -433,7 +454,51 @@ async def send_next_question(message: Message, user_id: int):
         format_question(qid, text, opts),
         reply_markup=build_keyboard(qid, opts)
     )
+# ==========================
+# ВОПРОСЫ С ОШИБКАМИ
+# ==========================
 
+async def send_next_wrong_question(message: Message, user_id: int):
+
+    session = user_sessions.get(user_id)
+
+    if not session:
+        return
+
+    wrong = session["wrong_questions"]
+    index = session.get("wrong_index", 0)
+
+    if index >= len(wrong):
+        await finish_test(message, user_id)
+        return
+
+    qid = wrong[index]
+    session["wrong_index"] += 1
+
+    con = db(user_id)
+    cur = con.cursor()
+
+    cur.execute(
+        "SELECT id, text, rationale FROM questions WHERE id=?",
+        (qid,)
+    )
+
+    q = cur.fetchone()
+
+    cur.execute(
+        "SELECT id, pos, text, is_correct FROM options WHERE question_id=? ORDER BY pos",
+        (qid,)
+    )
+
+    opts = cur.fetchall()
+    con.close()
+
+    session["last_question_id"] = qid
+
+    await message.answer(
+        format_question(qid, q[1], opts),
+        reply_markup=build_keyboard(qid, opts)
+    )
 
 # ==========================
 # ОТВЕТ
@@ -475,15 +540,20 @@ async def on_answer(call: CallbackQuery):
     session["last_question_id"] = None
 
     if row and row[0] == 1:
-        session["correct"] += 1
-        result = "✅ Правильно!"
+    session["correct"] += 1
+    result = "✅ Правильно!"
     else:
-        result = "❌ Неверно"
+    result = "❌ Неверно"
+    session["wrong_questions"].append(qid)
 
     if rationale_row and rationale_row[0]:
         result += f"\n\n📌 Основание:\n{rationale_row[0].strip()}"
 
     await call.message.answer(result)
+
+if session["mode"] == "wrong":
+    await send_next_wrong_question(call.message, user_id)
+else:
     await send_next_question(call.message, user_id)
     
 @dp.callback_query(F.data.startswith("fav:"))
@@ -551,12 +621,24 @@ async def finish_test(message: Message, user_id: int):
     con.close()
 
     await message.answer(
-        f"🏁 Тест завершён\n\n"
-        f"Всего вопросов: {total}\n"
-        f"Правильных: {correct}\n"
-        f"Ошибок: {total - correct}\n\n"
-        f"📊 Результат: {percent}%"
-    )
+        text = (
+    f"🏁 Тест завершён\n\n"
+    f"Всего вопросов: {total}\n"
+    f"Правильных: {correct}\n"
+    f"Ошибок: {total - correct}\n\n"
+    f"📊 Результат: {percent}%"
+)
+
+kb = InlineKeyboardBuilder()
+
+if session["wrong_questions"]:
+    kb.button(text="🔁 Повторить ошибки", callback_data="repeat_wrong")
+
+kb.button(text="📚 Новый тест", callback_data="restart_test")
+
+kb.adjust(1)
+
+await message.answer(text, reply_markup=kb.as_markup())
 
 
 # ==========================

@@ -451,10 +451,16 @@ async def send_next_question(message: Message, user_id: int):
 
     session["last_question_id"] = qid
 
-    await message.answer(
-        format_question(qid, text, opts),
-        reply_markup=build_keyboard(qid, opts)
-    )
+question_text = format_question(qid, text, opts)
+
+if session["mode"] == "random":
+    progress = f"📊 Вопрос {session['total'] + 1} / 20\n\n"
+    question_text = progress + question_text
+
+await message.answer(
+    question_text,
+    reply_markup=build_keyboard(qid, opts)
+)
 # ==========================
 # ВОПРОСЫ С ОШИБКАМИ
 # ==========================

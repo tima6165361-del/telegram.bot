@@ -635,7 +635,6 @@ if session["wrong_questions"]:
     kb.button(text="🔁 Повторить ошибки", callback_data="repeat_wrong")
 
 kb.button(text="📚 Новый тест", callback_data="restart_test")
-
 kb.adjust(1)
 
 await message.answer(text, reply_markup=kb.as_markup())

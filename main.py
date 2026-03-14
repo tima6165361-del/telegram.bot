@@ -536,8 +536,8 @@ async def on_answer(call: CallbackQuery):
 
     con.close()
 
-    session["total"] += 1
-    session["last_question_id"] = None
+session["total"] += 1
+session["last_question_id"] = None
 
 if row and row[0] == 1:
     session["correct"] += 1
@@ -546,10 +546,10 @@ else:
     result = "❌ Неверно"
     session["wrong_questions"].append(qid)
 
-    if rationale_row and rationale_row[0]:
-        result += f"\n\n📌 Основание:\n{rationale_row[0].strip()}"
+if rationale_row and rationale_row[0]:
+    result += f"\n\n📌 Основание:\n{rationale_row[0].strip()}"
 
-    await call.message.answer(result)
+await call.message.answer(result)
 
 if session["mode"] == "wrong":
     await send_next_wrong_question(call.message, user_id)
@@ -638,7 +638,33 @@ async def finish_test(message: Message, user_id: int):
 
     await message.answer(text, reply_markup=kb.as_markup())
 
+# ==========================
+# НОВЫЙ ТЕСТ
+# ==========================
 
+@dp.callback_query(F.data == "restart_test")
+async def restart_test(call: CallbackQuery):
+
+    user_id = call.from_user.id
+
+    if user_id in user_sessions:
+        del user_sessions[user_id]
+
+    if user_id in current_group:
+        del current_group[user_id]
+
+    kb = InlineKeyboardBuilder()
+    kb.button(text="Группа II", callback_data="group_2")
+    kb.button(text="Группа III", callback_data="group_3")
+    kb.button(text="Группа IV", callback_data="group_4")
+    kb.adjust(1)
+
+    await call.message.answer(
+        "Выберите группу по электробезопасности:",
+        reply_markup=kb.as_markup()
+    )
+
+    await call.answer()
 # ==========================
 # MAIN
 # ==========================
